@@ -1,8 +1,9 @@
 import streamlit as st
+from openai import OpenAI
 
-# -----------------------------
+# --------------------------------
 # НАСТРОЙКИ СТРАНИЦЫ
-# -----------------------------
+# --------------------------------
 
 st.set_page_config(
     page_title="AI Assistant",
@@ -11,9 +12,9 @@ st.set_page_config(
 )
 
 
-# -----------------------------
-# СТИЛИ
-# -----------------------------
+# --------------------------------
+# СТИЛЬ
+# --------------------------------
 
 st.markdown("""
 <style>
@@ -37,115 +38,191 @@ h1 {
 """, unsafe_allow_html=True)
 
 
-# -----------------------------
-# БОКОВАЯ ПАНЕЛЬ
-# -----------------------------
+# --------------------------------
+# ПРОВЕРКА API-КЛЮЧА
+# --------------------------------
+
+if "OPENAI_API_KEY" not in st.secrets:
+
+    st.error("API-ключ OpenAI не найден в Streamlit Secrets.")
+    st.stop()
+
+
+# --------------------------------
+# OPENAI
+# --------------------------------
+
+client = OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"]
+)
+
+
+# --------------------------------
+# ИСТОРИЯ ЧАТА
+# --------------------------------
+
+if "messages" not in st.session_state:
+
+    st.session_state.messages = []
+
+
+# --------------------------------
+# БОКОВОЕ МЕНЮ
+# --------------------------------
 
 with st.sidebar:
 
     st.title("🤖 AI Assistant")
 
     st.write("""
-    Простой AI-чат, созданный на:
+    AI-помощник на базе:
 
     - Python
     - Streamlit
     - OpenAI API
+    - GPT-6 Luna
     """)
 
     st.divider()
 
-    if st.button("🗑 Очистить чат", use_container_width=True):
+    if st.button(
+        "🗑 Очистить чат",
+        use_container_width=True
+    ):
+
         st.session_state.messages = []
+
         st.rerun()
 
     st.divider()
 
-    st.caption("Версия 1.0")
+    st.caption("AI Assistant v2.0")
 
 
-# -----------------------------
+# --------------------------------
 # ЗАГОЛОВОК
-# -----------------------------
+# --------------------------------
 
 st.title("🤖 AI Assistant")
 
 st.markdown(
-    '<div class="subtitle">Ваш персональный AI-помощник</div>',
+    '<div class="subtitle">'
+    'Задайте любой вопрос'
+    '</div>',
     unsafe_allow_html=True
 )
 
 
-# -----------------------------
-# ИСТОРИЯ СООБЩЕНИЙ
-# -----------------------------
+# --------------------------------
+# ПРИВЕТСТВИЕ
+# --------------------------------
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-
-# Приветственное сообщение
 if len(st.session_state.messages) == 0:
 
     with st.chat_message("assistant"):
-        st.write(
-            "Привет! 👋 Я AI Assistant. "
-            "Напиши мне сообщение."
-        )
+
+        st.write("""
+        Привет! 👋
+
+        Я AI Assistant.
+
+        Можешь спросить меня о программировании,
+        учёбе, технологиях или любой другой теме.
+        """)
 
 
-# Показываем историю сообщений
+# --------------------------------
+# ПОКАЗЫВАЕМ ИСТОРИЮ
+# --------------------------------
+
 for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+
+        st.markdown(
+            message["content"]
+        )
 
 
-# -----------------------------
-# ПОЛЕ ВВОДА
-# -----------------------------
+# --------------------------------
+# ВВОД СООБЩЕНИЯ
+# --------------------------------
 
 prompt = st.chat_input(
     "Введите сообщение..."
 )
 
 
-# -----------------------------
-# ОБРАБОТКА СООБЩЕНИЯ
-# -----------------------------
+# --------------------------------
+# ЗАПРОС К AI
+# --------------------------------
 
 if prompt:
 
     # Сохраняем сообщение пользователя
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt
-        }
-    )
+
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt
+    })
+
 
     # Показываем сообщение пользователя
+
     with st.chat_message("user"):
+
         st.markdown(prompt)
 
 
-    # Пока тестовый ответ
-    answer = (
-        f"Вы написали: **{prompt}**\n\n"
-        "Сейчас я работаю в тестовом режиме. "
-        "На следующем этапе мы подключим настоящий AI."
-    )
+    # Ответ AI
 
-
-    # Показываем ответ
     with st.chat_message("assistant"):
-        st.markdown(answer)
+
+        with st.spinner("Думаю..."):
+
+            try:
+
+                response = client.responses.create(
+
+                    model="gpt-6-luna",
+
+                    reasoning={
+                        "effort": "low"
+                    },
+
+                    instructions="""
+                    Ты полезный AI-помощник.
+
+                    Отвечай понятно и по существу.
+                    Если пользователь спрашивает
+                    о программировании, объясняй
+                    код простыми словами и приводи
+                    примеры.
+                    """,
+
+                    input=st.session_state.messages,
+
+                    max_output_tokens=1500
+                )
 
 
-    # Сохраняем ответ
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": answer
-        }
-    )
+                answer = response.output_text
+
+                st.markdown(answer)
+
+
+                # Сохраняем ответ AI
+
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": answer
+                })
+
+
+            except Exception as error:
+
+                st.error(
+                    "Не удалось получить ответ от OpenAI."
+                )
+
+                st.code(str(error))
