@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 home = st.Page(
     "home.py",
     title="AI Assistant",
@@ -13,11 +14,22 @@ code_mentor = st.Page(
     icon="💻"
 )
 
+friends = st.Page(
+    "pages/2_Мои_любимки.py",
+    title="Мои любимки <3",
+    icon="❤️"
+)
+
+
 page = st.navigation(
     {
         "Проекты": [
             home,
             code_mentor
+        ],
+
+        "Для друзей ❤️": [
+            friends
         ]
     }
 )
